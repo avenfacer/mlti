@@ -58,7 +58,9 @@ for fname in files:
     # Write to a temporary file first so an interrupted conversion never leaves
     # the seeder with a partial JSON file.
     fd, temp_path = tempfile.mkstemp(dir=json_dir, suffix='.json')
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+    # newline='\n' keeps LF endings on Windows too (matches .gitattributes eol=lf),
+    # so re-seeding does not mark every JSON file as modified in git.
+    with os.fdopen(fd, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
     os.replace(temp_path, output_path)
     wb.close()
