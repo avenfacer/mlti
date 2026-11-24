@@ -41,7 +41,7 @@ class QrLoginTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'redirect' => route('dashboard'),
+                'redirect' => route('portal'),
             ]);
 
         $this->assertAuthenticatedAs($user);
@@ -71,7 +71,7 @@ class QrLoginTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'redirect' => route('dashboard'),
+                'redirect' => route('portal'),
             ]);
 
         $this->assertAuthenticatedAs($user);

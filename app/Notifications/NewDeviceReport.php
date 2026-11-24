@@ -42,7 +42,7 @@ class NewDeviceReport extends Notification
             ->line('- **Jenis Kendala:** ' . strtoupper($this->report->issue_type))
             ->line('- **Deskripsi:** ' . $this->report->description)
             ->line('- **Pelapor:** ' . ($reporter ? $reporter->name : 'N/A') . ' (' . $this->report->reported_by . ')')
-            ->action('Lihat Daftar Laporan', url('/admin/reports'))
+            ->action('Lihat Daftar Laporan', route('admin.reports.index'))
             ->line('Terima kasih telah menjaga kelancaran operasional IT!');
     }
 

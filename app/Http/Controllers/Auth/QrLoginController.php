@@ -12,7 +12,7 @@ class QrLoginController extends Controller
     public function showForm()
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route('portal');
         }
         return view('auth.login');
     }
@@ -43,9 +43,10 @@ class QrLoginController extends Controller
 
             if ($user) {
                 Auth::login($user, true); // login with remember
+                $request->session()->regenerate();
                 return response()->json([
                     'success' => true,
-                    'redirect' => route('dashboard')
+                    'redirect' => route('portal')
                 ]);
             }
         }
@@ -61,6 +62,6 @@ class QrLoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('login');
+        return redirect()->route('portal');
     }
 }
