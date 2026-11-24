@@ -12,36 +12,46 @@
     <ul class="d-flex align-items-center">
 
       @auth
-        @if(auth()->user()->is_jarkom == 1)
+        @php $unreadNotifications = auth()->user()->unreadNotifications; @endphp
           <!-- ======= Notifications Dropdown ======= -->
           <li class="nav-item dropdown">
-            <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-              <i class="bi bi-bell text-white"></i>
-              @if(auth()->user()->unreadNotifications->count() > 0)
-                <span class="badge bg-danger badge-number" style="font-size: 0.65rem; padding: 3px 5px;">{{ auth()->user()->unreadNotifications->count() }}</span>
+            <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown" aria-label="Notifikasi">
+              <i class="bi bi-bell"></i>
+              @if($unreadNotifications->count() > 0)
+                <span class="badge bg-danger badge-number" style="font-size: 0.65rem; padding: 3px 5px;">{{ $unreadNotifications->count() }}</span>
               @endif
             </a><!-- End Notification Icon -->
 
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications border-0 shadow-lg">
               <li class="dropdown-header py-3 bg-light text-dark">
-                <span class="fw-bold">Notifikasi Laporan Baru</span>
-                @if(auth()->user()->unreadNotifications->count() > 0)
-                  <a href="{{ route('admin.notifications.index') }}"><span class="badge rounded-pill bg-primary p-2 ms-2">Lihat Semua</span></a>
+                <span class="fw-bold">Notifikasi</span>
+                @if($unreadNotifications->count() > 0)
+                  <a href="{{ route('notifications.index') }}"><span class="badge rounded-pill bg-primary p-2 ms-2">Lihat Semua</span></a>
                 @endif
               </li>
               <li>
                 <hr class="dropdown-divider my-0">
               </li>
 
-              @forelse(auth()->user()->unreadNotifications->take(4) as $notification)
+              @forelse($unreadNotifications->take(4) as $notification)
+                @php $isRoom = ($notification->data['kind'] ?? null) === 'room_booking'; @endphp
                 <li class="notification-item py-3 px-4 hover-bg-light transition">
                   <div class="d-flex align-items-start">
-                    <i class="bi bi-exclamation-circle text-warning fs-5 me-3"></i>
+                    @if($isRoom)
+                      <i class="bi bi-door-open fs-5 me-3" style="color: var(--color-primary)"></i>
+                    @else
+                      <i class="bi bi-exclamation-circle text-warning fs-5 me-3"></i>
+                    @endif
                     <div>
-                      <h4 class="fs-6 fw-bold mb-1 text-dark">Laporan {{ ucfirst($notification->data['issue_type'] ?? 'Kerusakan') }}</h4>
-                      <p class="text-muted mb-1 small">{{ Str::limit($notification->data['description'] ?? '', 45) }}</p>
+                      @if($isRoom)
+                        <h4 class="fs-6 fw-bold mb-1"><a href="{{ $notification->data['url'] ?? route('notifications.index') }}" class="text-dark">{{ $notification->data['title'] }}</a></h4>
+                        <p class="text-muted mb-1 small">{{ Str::limit($notification->data['message'] ?? '', 70) }}</p>
+                      @else
+                        <h4 class="fs-6 fw-bold mb-1 text-dark">Laporan {{ ucfirst($notification->data['issue_type'] ?? 'Kerusakan') }}</h4>
+                        <p class="text-muted mb-1 small">{{ Str::limit($notification->data['description'] ?? '', 45) }}</p>
+                      @endif
                       <p class="text-secondary mb-0" style="font-size: 0.75rem;">
-                        <i class="bi bi-clock me-1"></i>{{ \Carbon\Carbon::parse($notification->data['reported_at'] ?? now())->diffForHumans() }}
+                        <i class="bi bi-clock me-1"></i>{{ $notification->created_at->diffForHumans() }}
                       </p>
                     </div>
                   </div>
@@ -56,11 +66,10 @@
               @endforelse
 
               <li class="dropdown-footer py-2 text-center">
-                <a href="{{ route('admin.notifications.index') }}" class="small text-primary fw-bold">Tampilkan semua notifikasi</a>
+                <a href="{{ route('notifications.index') }}" class="small text-primary fw-bold">Tampilkan semua notifikasi</a>
               </li>
             </ul><!-- End Notification Dropdown Items -->
           </li><!-- End Notification Nav -->
-        @endif
 
         <li class="nav-item dropdown pe-3">
           <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">

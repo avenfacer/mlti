@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,10 +22,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Support\Facades\Blade::directive('title', function ($expression) {
+        Blade::directive('title', function ($expression) {
             return "<?php \$__env->startSection('title', $expression); ?>";
         });
 
-        \Illuminate\Pagination\Paginator::useBootstrapFive();
+        Paginator::useBootstrapFive();
+
+        // Nama hari/bulan dan "x menit yang lalu" dalam Bahasa Indonesia (UI berbahasa Indonesia).
+        Carbon::setLocale('id');
     }
 }

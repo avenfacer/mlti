@@ -7,6 +7,9 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\GeneralServiceController;
+use App\Http\Controllers\RoomBookingController;
+use App\Http\Controllers\Umum\MeetingRoomController;
+use App\Http\Controllers\Umum\RoomBookingReviewController;
 use Illuminate\Support\Facades\Route;
 
 // Central internal services portal
@@ -48,10 +51,25 @@ Route::prefix('mlti')->group(function () {
 
         Route::get('/sigap', [GeneralServiceController::class, 'sigap'])->name('general.sigap');
         Route::post('/sigap', [GeneralServiceController::class, 'storeSigap'])->name('general.sigap.store');
-        Route::get('/{type}/pengajuan', [GeneralServiceController::class, 'bookingForm'])->whereIn('type', ['zoom', 'room'])->name('general.booking.form');
-        Route::post('/{type}/pengajuan', [GeneralServiceController::class, 'storeBooking'])->whereIn('type', ['zoom', 'room'])->name('general.booking.store');
-        Route::get('/{type}/riwayat', [GeneralServiceController::class, 'bookingHistory'])->whereIn('type', ['zoom', 'room'])->name('general.booking.history');
-        Route::delete('/{type}/riwayat/{booking}', [GeneralServiceController::class, 'destroyBooking'])->whereIn('type', ['zoom', 'room'])->name('general.booking.destroy');
+        Route::get('/{type}/pengajuan', [GeneralServiceController::class, 'bookingForm'])->whereIn('type', ['zoom'])->name('general.booking.form');
+        Route::post('/{type}/pengajuan', [GeneralServiceController::class, 'storeBooking'])->whereIn('type', ['zoom'])->name('general.booking.store');
+        Route::get('/{type}/riwayat', [GeneralServiceController::class, 'bookingHistory'])->whereIn('type', ['zoom'])->name('general.booking.history');
+        Route::delete('/{type}/riwayat/{booking}', [GeneralServiceController::class, 'destroyBooking'])->whereIn('type', ['zoom'])->name('general.booking.destroy');
+
+        // Ruang Jambi (pengajuan ruang rapat)
+        Route::prefix('ruang-jambi')->as('ruang.')->controller(RoomBookingController::class)->group(function () {
+            Route::get('/', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/saya', 'index')->name('index');
+            Route::get('/{booking}', 'show')->name('show');
+            Route::get('/{booking}/ubah', 'edit')->name('edit');
+            Route::put('/{booking}', 'update')->name('update');
+            Route::post('/{booking}/batal', 'cancel')->name('cancel');
+        });
+
+        // Notifikasi milik pengguna (laporan perangkat, Ruang Jambi, dll.)
+        Route::get('/notifikasi', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifikasi/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     });
 
     // Admin / Jarkom Flow
@@ -65,8 +83,6 @@ Route::prefix('mlti')->group(function () {
         Route::resource('/users', \App\Http\Controllers\Admin\UserController::class);
         Route::resource('/devices', \App\Http\Controllers\Admin\DeviceController::class);
 
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::get('/laporan-zoom', [GeneralServiceController::class, 'adminZoomBookings'])->name('zoom-reports');
         Route::get('/laporan-zoom/{booking:booking_code}', [GeneralServiceController::class, 'showZoomBooking'])->name('zoom-reports.show');
         Route::patch('/laporan-zoom/{booking:booking_code}', [GeneralServiceController::class, 'updateZoomBooking'])->name('zoom-reports.update');
@@ -74,6 +90,29 @@ Route::prefix('mlti')->group(function () {
 
     Route::middleware(['auth', 'umum'])->prefix('umum')->as('umum.')->group(function () {
         Route::get('/laporan-sigap', [GeneralServiceController::class, 'adminComplaints'])->name('complaints');
-        Route::get('/laporan-ruangan', [GeneralServiceController::class, 'adminBookings'])->name('bookings');
+
+        // Ruang Jambi: kelola ruang, fasilitas, maintenance (didaftarkan sebelum /{booking})
+        Route::prefix('ruang-jambi/kelola')->as('ruang.manage')->controller(MeetingRoomController::class)->group(function () {
+            Route::get('/', 'index')->name('');
+            Route::post('/ruang', 'storeRoom')->name('.rooms.store');
+            Route::put('/ruang/{meetingRoom}', 'updateRoom')->name('.rooms.update');
+            Route::post('/ruang/{meetingRoom}/toggle', 'toggleRoom')->name('.rooms.toggle');
+            Route::delete('/ruang/{meetingRoom}', 'destroyRoom')->name('.rooms.destroy');
+            Route::post('/fasilitas', 'storeFacility')->name('.facilities.store');
+            Route::put('/fasilitas/{facility}', 'updateFacility')->name('.facilities.update');
+            Route::post('/fasilitas/{facility}/toggle', 'toggleFacility')->name('.facilities.toggle');
+            Route::post('/maintenance', 'storeBlock')->name('.blocks.store');
+            Route::delete('/maintenance/{block}', 'destroyBlock')->name('.blocks.destroy');
+        });
+
+        // Ruang Jambi: tindak lanjut pengajuan
+        Route::prefix('ruang-jambi')->as('ruang.')->controller(RoomBookingReviewController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{booking}', 'show')->name('show');
+            Route::post('/{booking}/setujui', 'approve')->name('approve');
+            Route::post('/{booking}/tolak', 'reject')->name('reject');
+            Route::post('/{booking}/revisi', 'revision')->name('revision');
+            Route::post('/{booking}/batal', 'cancel')->name('cancel');
+        });
     });
 });
