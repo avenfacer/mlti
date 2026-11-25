@@ -137,7 +137,7 @@ class SigapTest extends TestCase
         $complaint = $this->makeComplaint();
         $this->umum->notify(new NewSigapComplaint($complaint->load(['reporter', 'room'])));
 
-        $this->actingAs($this->umum)->get(route('admin.notifications.index'))
+        $this->actingAs($this->umum)->get(route('notifications.index'))
             ->assertOk()->assertSee($complaint->ticket_id);
     }
 }

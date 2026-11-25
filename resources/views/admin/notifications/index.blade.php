@@ -4,11 +4,11 @@
 
 @section('content')
 <div class="pagetitle">
-  <h1>Notifikasi Laporan</h1>
+  <h1>Notifikasi</h1>
   <nav>
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Beranda</a></li>
-      <li class="breadcrumb-item active">Notifikasi Laporan</li>
+      <li class="breadcrumb-item active">Notifikasi</li>
     </ol>
   </nav>
 </div><!-- End Page Title -->
@@ -26,6 +26,27 @@
           
           <div class="list-group list-group-flush">
             @forelse($notifications as $notif)
+              @if(($notif->data['kind'] ?? null) === 'room_booking')
+              <div class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-start">
+                  <div class="p-2 rounded-circle me-3" style="background:#fff1f7;color:var(--color-primary)">
+                    <i class="bi bi-door-open-fill fs-4"></i>
+                  </div>
+                  <div>
+                    <h6 class="mb-1 text-dark fw-bold">{{ $notif->data['title'] }} <small class="text-muted fw-normal font-monospace">{{ $notif->data['booking_code'] ?? '' }}</small></h6>
+                    <p class="mb-1 text-muted small">{{ $notif->data['message'] ?? '' }}</p>
+                    <span class="text-muted small" style="font-size: 0.75rem;">{{ $notif->created_at->diffForHumans() }}</span>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 flex-shrink-0 ms-3">
+                  <a href="{{ $notif->data['url'] ?? '#' }}" class="btn btn-sm btn-secondary py-1 text-nowrap"><i class="bi bi-eye"></i> Detail</a>
+                  <form action="{{ route('notifications.read', $notif->id) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-light py-1 text-success text-nowrap"><i class="bi bi-check2-circle"></i> Tandai Dibaca</button>
+                  </form>
+                </div>
+              </div>
+              @else
               <div class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-start">
                   <div class="p-2 bg-light-warning rounded-circle me-3 text-warning">
@@ -52,11 +73,11 @@
                   </div>
                 </div>
 
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-shrink-0 ms-3">
                   <a href="{{ $notif->data['url'] ?? route('admin.reports.show', $notif->data['report_id']) }}" class="btn btn-sm btn-outline-primary py-1">
                     <i class="bi bi-eye"></i> Detail
                   </a>
-                  <form action="{{ route('admin.notifications.read', $notif->id) }}" method="POST">
+                  <form action="{{ route('notifications.read', $notif->id) }}" method="POST">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-light py-1 text-success">
                       <i class="bi bi-check2-circle"></i> Tandai Dibaca
@@ -64,11 +85,12 @@
                   </form>
                 </div>
               </div>
+              @endif
             @empty
               <div class="text-center py-5 text-muted">
                 <i class="bi bi-bell-slash fs-1 d-block mb-2"></i>
                 <h5>Tidak ada notifikasi baru</h5>
-                <p class="mb-0 small">Seluruh laporan kerusakan masuk telah ditandai sebagai dibaca.</p>
+                <p class="mb-0 small">Seluruh notifikasi telah ditandai sebagai dibaca.</p>
               </div>
             @endforelse
           </div>

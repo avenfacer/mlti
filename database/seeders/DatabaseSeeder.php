@@ -40,7 +40,10 @@ class DatabaseSeeder extends Seeder
             Room::updateOrCreate(['id' => $room['id']], ['ruang' => $room['ruang']]);
         }
 
-        // 3a. Seed Zoom Rooms
+        // 3a. Ruang rapat Ruang Jambi (profil di atas tabel rooms) + fasilitas
+        $this->call(MeetingRoomSeeder::class);
+
+        // 3b. Seed Zoom Rooms
         $zoomRooms = json_decode(file_get_contents(database_path('seeders/json/zoom_room.json')), true);
         foreach ($zoomRooms as $zoomRoom) {
             ZoomRoom::updateOrCreate(['id' => $zoomRoom['id']], ['zoom_room' => $zoomRoom['zoom_room']]);
