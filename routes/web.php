@@ -13,6 +13,7 @@ use App\Http\Controllers\RoomBookingController;
 use App\Http\Controllers\SigapController;
 use App\Http\Controllers\Umum\MeetingRoomController;
 use App\Http\Controllers\Umum\RoomBookingReviewController;
+use App\Models\Booking;
 use Illuminate\Support\Facades\Route;
 
 // Central internal services portal
@@ -70,6 +71,7 @@ Route::prefix('mlti')->group(function () {
             Route::get('/{booking}/ubah', 'edit')->name('edit');
             Route::put('/{booking}', 'update')->name('update');
             Route::post('/{booking}/batal', 'cancel')->name('cancel');
+            Route::get('/{booking}/dokumen/{document}', 'document')->whereIn('document', array_keys(Booking::DOCUMENTS))->name('document');
         });
 
         // Notifikasi milik pengguna (laporan perangkat, Ruang Jambi, dll.)

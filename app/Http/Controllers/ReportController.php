@@ -68,7 +68,7 @@ class ReportController extends Controller
                 return redirect()->route('dashboard')->with('error', 'Perangkat ini sedang dalam proses perbaikan (Tiket aktif sudah ada).');
             }
             // If room_id was not explicitly passed, infer from device's room if available
-            if (!$roomId && $device->id_user && is_numeric($device->id_user) && $device->id_user < 100) {
+            if (! $roomId && $device->id_user && is_numeric($device->id_user) && $device->id_user < 100) {
                 $roomId = $device->id_user;
             }
         }
@@ -108,12 +108,12 @@ class ReportController extends Controller
     public function history()
     {
         $user = Auth::user();
-        
+
         $reports = Report::where('reported_by', $user->nip_lama)
             ->with(['device.type'])
             ->latest()
             ->paginate(10);
-            
+
         return view('reports.history', compact('reports'));
     }
 
@@ -139,14 +139,14 @@ class ReportController extends Controller
     public function showReport($ticketId)
     {
         $user = Auth::user();
-        
+
         $report = Report::where(function ($query) use ($ticketId) {
-                $query->where('ticket_id', $ticketId)->orWhere('id', $ticketId);
-            })
+            $query->where('ticket_id', $ticketId)->orWhere('id', $ticketId);
+        })
             ->where('reported_by', $user->nip_lama)
             ->with(['device.type', 'device.condition', 'reporter', 'technician', 'vendor'])
             ->firstOrFail();
-            
+
         return view('reports.show', compact('report'));
     }
 }

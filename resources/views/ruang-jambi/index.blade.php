@@ -17,7 +17,7 @@
         <div class="card">
             <div class="card-body pt-3">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0 rj-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Kode</th>
@@ -34,12 +34,12 @@
                                     <td>{{ $booking->title }}<small class="d-block text-muted"><i class="bi bi-door-open me-1"></i>{{ $booking->room->ruang ?? '-' }}</small></td>
                                     <td class="text-nowrap">{{ $booking->starts_at->translatedFormat('d M Y') }}<small class="d-block text-muted">{{ $booking->starts_at->format('H:i') }} – {{ $booking->ends_at->format('H:i') }}</small></td>
                                     <td>@include('ruang-jambi._status-badge')</td>
-                                    <td class="text-center text-nowrap">
+                                    <td class="text-center"><div class="rj-actions">
                                         <a href="{{ route('ruang.show', $booking) }}" class="btn btn-sm btn-secondary"><i class="bi bi-eye"></i> Detail</a>
                                         @if ($booking->isEditable())
-                                            <a href="{{ route('ruang.edit', $booking) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> {{ $booking->status === 'perlu_revisi' ? 'Revisi' : 'Ubah' }}</a>
+                                            <a href="{{ route('ruang.edit', $booking) }}" class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> {{ $booking->status === 'perlu_revisi' ? 'Revisi' : 'Ubah' }}</a>
                                         @endif
-                                    </td>
+                                    </div></td>
                                 </tr>
                             @empty
                                 <tr>

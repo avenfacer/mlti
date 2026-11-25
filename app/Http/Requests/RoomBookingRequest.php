@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Facility;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -18,40 +17,58 @@ class RoomBookingRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    /**
+     * Penanggung jawab dipilih dari daftar Ketua Tim Kerja (pic_choice) atau
+     * diisi bebas bila memilih "Lainnya" (pic_other); hasilnya disimpan di `pic`.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('pic_choice')) {
+            $choice = (string) $this->input('pic_choice');
+            $this->merge(['pic' => $choice === 'lainnya' ? trim((string) $this->input('pic_other')) : $choice]);
+        }
+    }
+
     public function rules(): array
     {
+        $document = ['file', 'mimes:'.implode(',', config('ruang_jambi.document_mimes')), 'max:'.config('ruang_jambi.document_max_kb')];
+        // Nota dinas wajib saat pengajuan baru; saat ubah/revisi boleh memakai berkas sebelumnya.
+        $booking = $this->route('booking');
+        $memoRequired = ! ($booking && $booking->memo_path);
+
         return [
             'title' => ['required', 'string', 'min:5', 'max:200'],
-            'purpose' => ['nullable', 'string', 'max:5000'],
+            'pic_choice' => ['sometimes', 'required', 'string', Rule::in([...config('ruang_jambi.pic_options'), 'lainnya'])],
             'pic' => ['required', 'string', 'max:150'],
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'start' => ['required', 'date_format:H:i'],
             'end' => ['required', 'date_format:H:i', 'after:start'],
             'participants' => ['required', 'integer', 'min:2', 'max:1000'],
             'room_id' => ['required', 'integer', Rule::exists('meeting_rooms', 'room_id')],
-            'facility_ids' => ['array'],
-            'facility_ids.*' => ['integer', 'distinct', Rule::exists('facilities', 'id')
-                ->where('type', Facility::TAMBAHAN)->where('active', true)],
-            'other_needs' => ['nullable', 'string', 'max:2000'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'layout' => ['required', 'string', Rule::in(array_keys(config('ruang_jambi.layouts')))],
+            'officials_count' => ['required', 'integer', 'min:0', 'max:'.config('ruang_jambi.max_officials')],
+            'committee' => ['nullable', 'string', Rule::in(array_keys(config('ruang_jambi.committees')))],
+            'memo' => [$memoRequired ? 'required' : 'nullable', ...$document],
+            'letter' => ['nullable', ...$document],
         ];
     }
 
     public function attributes(): array
     {
         return [
-            'title' => 'judul kegiatan',
-            'purpose' => 'agenda',
-            'pic' => 'penanggung jawab',
+            'title' => 'nama acara',
+            'pic_choice' => 'penanggung jawab acara',
+            'pic' => 'penanggung jawab acara',
             'date' => 'tanggal',
             'start' => 'jam mulai',
             'end' => 'jam selesai',
             'participants' => 'jumlah peserta',
             'room_id' => 'ruangan',
-            'facility_ids' => 'fasilitas tambahan',
-            'facility_ids.*' => 'fasilitas tambahan',
-            'other_needs' => 'kebutuhan lainnya',
-            'notes' => 'catatan',
+            'layout' => 'layout ruangan',
+            'officials_count' => 'jumlah pejabat yang duduk di depan',
+            'committee' => 'susunan kepanitiaan',
+            'memo' => 'nota dinas',
+            'letter' => 'surat pendukung',
         ];
     }
 
@@ -59,7 +76,11 @@ class RoomBookingRequest extends FormRequest
     {
         return [
             'required' => ':Attribute wajib diisi.',
-            'title.min' => 'Judul kegiatan minimal :min karakter.',
+            'title.min' => 'Nama acara minimal :min karakter.',
+            'pic.required' => 'Tuliskan nama penanggung jawab acara.',
+            'mimes' => ':Attribute harus berformat :values.',
+            'memo.max' => 'Ukuran nota dinas maksimal 5 MB.',
+            'letter.max' => 'Ukuran surat pendukung maksimal 5 MB.',
             'participants.min' => 'Jumlah peserta minimal :min orang.',
             'participants.max' => 'Jumlah peserta maksimal :max orang.',
             'date.after_or_equal' => 'Tanggal tidak boleh di masa lalu.',

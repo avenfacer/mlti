@@ -10,31 +10,43 @@
             <strong>{{ $booking->booking_code }}</strong>
         </div>
         <table class="table table-borderless rj-detail mb-0">
-            <tr><th>Kegiatan</th><td class="fw-semibold">{{ $booking->title }}</td></tr>
-            @if ($booking->purpose)
-                <tr><th>Agenda</th><td style="white-space: pre-line">{{ $booking->purpose }}</td></tr>
-            @endif
+            <tr><th>Nama acara</th><td class="fw-semibold">{{ $booking->title }}</td></tr>
             <tr><th>Ruangan</th><td>{{ $booking->room->ruang ?? '-' }}
                 @if ($booking->meetingRoom)
                     <small class="d-block text-muted">{{ $booking->meetingRoom->location ? $booking->meetingRoom->location . ' · ' : '' }}Kapasitas {{ $booking->meetingRoom->capacity }} orang</small>
                 @endif
             </td></tr>
             <tr><th>Jadwal</th><td>{{ $booking->starts_at->translatedFormat('l, d F Y') }}<small class="d-block text-muted">{{ $booking->starts_at->format('H:i') }} – {{ $booking->ends_at->format('H:i') }} WIB</small></td></tr>
-            <tr><th>Peserta</th><td>{{ $booking->participants }} orang</td></tr>
-            <tr><th>Pemohon</th><td>{{ $booking->requester->name ?? '-' }}<small class="d-block text-muted">{{ $booking->requester->jabatan ?? '' }}</small></td></tr>
-            <tr><th>Penanggung jawab</th><td>{{ $booking->pic ?: '-' }}</td></tr>
-            <tr><th>Fasilitas tambahan</th><td>
-                @forelse ($booking->facilities as $facility)
-                    <span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-plus-circle me-1"></i>{{ $facility->name }}</span>
-                @empty
-                    <span class="text-muted">Tidak ada</span>
-                @endforelse
-                @if ($booking->other_needs)
-                    <small class="d-block text-muted mt-1">Lainnya: {{ $booking->other_needs }}</small>
+            <tr><th>Peserta</th><td>{{ $booking->participants }} orang
+                @if ($booking->meetingRoom && $booking->participants > $booking->meetingRoom->capacity)
+                    <small class="d-block text-warning-emphasis fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Melebihi kapasitas ruangan ({{ $booking->meetingRoom->capacity }} orang).</small>
                 @endif
             </td></tr>
-            @if ($booking->notes)
-                <tr><th>Catatan pemohon</th><td style="white-space: pre-line">{{ $booking->notes }}</td></tr>
+            <tr><th>Pemohon</th><td>{{ $booking->requester->name ?? '-' }}<small class="d-block text-muted">{{ $booking->requester->jabatan ?? '' }}</small></td></tr>
+            @if ($layout = $booking->layoutInfo())
+                <tr><th>Layout ruangan</th><td><i class="bi {{ $layout[2] }} me-1"></i>{{ $layout[0] }}
+                    @if ($layout[1])<small class="d-block text-muted">{{ $layout[1] }}</small>@endif
+                </td></tr>
+            @endif
+            @if ($booking->officialsLabel())
+                <tr><th>Pejabat di depan</th><td>{{ $booking->officialsLabel() }}</td></tr>
+            @endif
+            <tr><th>Penanggung jawab acara</th><td>{{ $booking->pic ?: '-' }}</td></tr>
+            @if ($committee = $booking->committeeInfo())
+                <tr><th>Susunan kepanitiaan</th><td>{{ $committee[0] }}
+                    <a href="{{ $committee[1] }}" target="_blank" rel="noopener" class="small ms-1"><i class="bi bi-box-arrow-up-right"></i> Template</a>
+                </td></tr>
+            @endif
+            @if ($booking->memo_path || $booking->letter_path)
+                <tr><th>Dokumen</th><td>
+                    @foreach (\App\Models\Booking::DOCUMENTS as $key => [$pathColumn, $nameColumn, $label])
+                        @if ($booking->{$pathColumn})
+                            <a class="rj-doc" href="{{ route('ruang.document', [$booking, $key]) }}" target="_blank" title="{{ $booking->{$nameColumn} }}">
+                                <i class="bi bi-file-earmark-text"></i><span><strong>{{ $label }}</strong> <small class="text-muted">{{ \Illuminate\Support\Str::limit($booking->{$nameColumn}, 28) }}</small></span>
+                            </a>
+                        @endif
+                    @endforeach
+                </td></tr>
             @endif
             @if ($booking->admin_notes)
                 <tr><th>Catatan Tim Umum</th><td style="white-space: pre-line">{{ $booking->admin_notes }}</td></tr>

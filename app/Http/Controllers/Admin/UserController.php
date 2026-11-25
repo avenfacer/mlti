@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Team;
 use App\Models\Room;
 use App\Models\Satker;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -19,11 +19,11 @@ class UserController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nip_lama', 'like', "%{$search}%")
-                  ->orWhere('nip_baru', 'like', "%{$search}%")
-                  ->orWhere('jabatan', 'like', "%{$search}%");
+                    ->orWhere('nip_lama', 'like', "%{$search}%")
+                    ->orWhere('nip_baru', 'like', "%{$search}%")
+                    ->orWhere('jabatan', 'like', "%{$search}%");
             });
         }
 
@@ -46,6 +46,7 @@ class UserController extends Controller
     {
         $teams = Team::all();
         $rooms = Room::all();
+
         return view('admin.users.create', compact('teams', 'rooms'));
     }
 
@@ -64,8 +65,8 @@ class UserController extends Controller
             'password' => 'nullable|string|min:6',
         ]);
 
-        $password = $request->filled('password') 
-            ? Hash::make($request->password) 
+        $password = $request->filled('password')
+            ? Hash::make($request->password)
             : Hash::make('password'); // Default password
 
         User::create([
@@ -89,6 +90,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $teams = Team::all();
         $rooms = Room::all();
+
         return view('admin.users.edit', compact('user', 'teams', 'rooms'));
     }
 
@@ -100,7 +102,7 @@ class UserController extends Controller
             'nip_lama' => [
                 'required',
                 'numeric',
-                Rule::unique('users', 'nip_lama')->ignore($user->nip_lama, 'nip_lama')
+                Rule::unique('users', 'nip_lama')->ignore($user->nip_lama, 'nip_lama'),
             ],
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -137,7 +139,7 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-        
+
         // Prevent deleting oneself
         if ($user->nip_lama === auth()->user()->nip_lama) {
             return redirect()->route('admin.users.index')->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Condition;
 use App\Models\Device;
-use App\Models\Type;
+use App\Models\Room;
 use App\Models\Source;
 use App\Models\StatusBmn;
-use App\Models\Condition;
+use App\Models\Type;
 use App\Models\User;
-use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -21,11 +21,11 @@ class DeviceController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', "%{$search}%")
-                  ->orWhere('brand', 'like', "%{$search}%")
-                  ->orWhere('series', 'like', "%{$search}%")
-                  ->orWhere('serial_number', 'like', "%{$search}%");
+                    ->orWhere('brand', 'like', "%{$search}%")
+                    ->orWhere('series', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%");
             });
         }
 
@@ -41,9 +41,9 @@ class DeviceController extends Controller
             $roomId = $request->room_id;
             $userIdsInRoom = User::where('id_ruang', $roomId)->pluck('nip_lama')->toArray();
 
-            $query->where(function($q) use ($roomId, $userIdsInRoom) {
+            $query->where(function ($q) use ($roomId, $userIdsInRoom) {
                 $q->where('id_user', $roomId)
-                  ->orWhereIn('id_user', $userIdsInRoom);
+                    ->orWhereIn('id_user', $userIdsInRoom);
             });
         }
 
@@ -72,7 +72,7 @@ class DeviceController extends Controller
         $request->validate([
             'id' => 'required|string|unique:devices,id',
             'id_type' => 'required|exists:types,id',
-            'year' => 'nullable|integer|min:1990|max:' . (date('Y') + 1),
+            'year' => 'nullable|integer|min:1990|max:'.(date('Y') + 1),
             'id_source' => 'required|exists:sources,id',
             'brand' => 'required|string|max:255',
             'series' => 'required|string|max:255',
@@ -89,7 +89,7 @@ class DeviceController extends Controller
             $userExists = User::where('nip_lama', $idUser)->exists();
             $roomExists = Room::where('id', $idUser)->exists();
 
-            if (!$userExists && !$roomExists) {
+            if (! $userExists && ! $roomExists) {
                 return back()->withErrors(['id_user' => 'Pemilik (User atau Ruangan) yang dipilih tidak terdaftar di sistem.'])->withInput();
             }
         }
@@ -132,10 +132,10 @@ class DeviceController extends Controller
             'id' => [
                 'required',
                 'string',
-                Rule::unique('devices', 'id')->ignore($device->id, 'id')
+                Rule::unique('devices', 'id')->ignore($device->id, 'id'),
             ],
             'id_type' => 'required|exists:types,id',
-            'year' => 'nullable|integer|min:1990|max:' . (date('Y') + 1),
+            'year' => 'nullable|integer|min:1990|max:'.(date('Y') + 1),
             'id_source' => 'required|exists:sources,id',
             'brand' => 'required|string|max:255',
             'series' => 'required|string|max:255',
@@ -152,7 +152,7 @@ class DeviceController extends Controller
             $userExists = User::where('nip_lama', $idUser)->exists();
             $roomExists = Room::where('id', $idUser)->exists();
 
-            if (!$userExists && !$roomExists) {
+            if (! $userExists && ! $roomExists) {
                 return back()->withErrors(['id_user' => 'Pemilik (User atau Ruangan) yang dipilih tidak terdaftar di sistem.'])->withInput();
             }
         }

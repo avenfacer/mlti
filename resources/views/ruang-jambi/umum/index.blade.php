@@ -32,7 +32,7 @@
                     <button class="btn btn-primary" aria-label="Cari"><i class="bi bi-search"></i></button>
                 </form>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0 rj-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Kode</th>

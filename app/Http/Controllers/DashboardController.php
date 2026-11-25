@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Device;
+use App\Models\Report;
 use App\Models\Room;
 use App\Models\Type;
-use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +14,7 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         // Fetch devices belonging to this user
         $devices = Device::where('id_user', $user->nip_lama)
             ->with(['type', 'condition'])
@@ -29,9 +29,9 @@ class DashboardController extends Controller
         }
 
         // Fetch all devices for addition/swap (excluding the ones the current user already owns)
-        $availableDevices = Device::where(function($q) use ($user) {
+        $availableDevices = Device::where(function ($q) use ($user) {
             $q->where('id_user', '!=', $user->nip_lama)
-              ->orWhereNull('id_user');
+                ->orWhereNull('id_user');
         })->with(['type', 'condition', 'user', 'room'])->get();
 
         $types = Type::all();
@@ -71,10 +71,10 @@ class DashboardController extends Controller
             ], 422);
         }
 
-        $deviceId = $parts[2] . '-' . $parts[3];
+        $deviceId = $parts[2].'-'.$parts[3];
         $device = Device::find($deviceId);
 
-        if (!$device) {
+        if (! $device) {
             return response()->json([
                 'message' => "Perangkat dengan kode BMN {$deviceId} tidak ditemukan.",
             ], 404);
@@ -90,7 +90,7 @@ class DashboardController extends Controller
     public function manage(Request $request)
     {
         $types = Type::all();
-        
+
         $query = Device::with(['type', 'condition', 'user']);
 
         // Default type if none selected (e.g. PC = 1, Laptop = 2, UPS = 4, or first available)
@@ -103,11 +103,11 @@ class DashboardController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', "%{$search}%")
-                  ->orWhere('brand', 'like', "%{$search}%")
-                  ->orWhere('series', 'like', "%{$search}%")
-                  ->orWhere('serial_number', 'like', "%{$search}%");
+                    ->orWhere('brand', 'like', "%{$search}%")
+                    ->orWhere('series', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%");
             });
         }
 
@@ -123,10 +123,10 @@ class DashboardController extends Controller
         ]);
 
         $device = Device::findOrFail($request->device_id);
-        
+
         // Assign to logged-in user
         $device->update([
-            'id_user' => Auth::user()->nip_lama
+            'id_user' => Auth::user()->nip_lama,
         ]);
 
         return back()->with('success', 'Perangkat berhasil ditambahkan ke daftar penguasaan Anda.');
@@ -142,7 +142,7 @@ class DashboardController extends Controller
         ]);
 
         $device = Device::findOrFail($request->device_id);
-        $user   = Auth::user();
+        $user = Auth::user();
 
         // Only allow if device belongs to the user's room
         if ($device->id_user != $user->id_ruang) {
@@ -162,7 +162,7 @@ class DashboardController extends Controller
         ]);
 
         $user = Auth::user();
-        if (!$user->id_ruang) {
+        if (! $user->id_ruang) {
             return back()->with('error', 'Akun Anda belum terhubung ke ruangan.');
         }
 
@@ -186,8 +186,9 @@ class DashboardController extends Controller
         // Ensure user owns it before releasing
         if ($device->id_user == Auth::user()->nip_lama) {
             $device->update([
-                'id_user' => null
+                'id_user' => null,
             ]);
+
             return back()->with('success', 'Perangkat berhasil dilepaskan dari daftar penguasaan Anda.');
         }
 
@@ -231,7 +232,7 @@ class DashboardController extends Controller
             return back()->with('error', 'Anda tidak memiliki hak untuk mengganti perangkat ini.');
         }
 
-        \DB::transaction(function() use ($oldDevice, $newDevice) {
+        \DB::transaction(function () use ($oldDevice, $newDevice) {
             // Set old device to Gudang (15)
             $oldDevice->update(['id_user' => 15]);
             // Assign new device to current user
@@ -244,7 +245,7 @@ class DashboardController extends Controller
     public function show($id)
     {
         $device = Device::with(['type', 'condition', 'source', 'statusBmn', 'user'])->findOrFail($id);
-        
+
         // Retrieve repair history for this device
         $reports = Report::where('device_id', $id)
             ->with(['reporter', 'technician', 'vendor'])

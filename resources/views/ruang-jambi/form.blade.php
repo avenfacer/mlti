@@ -3,7 +3,6 @@
     $editing = $booking !== null;
     $heading = !$editing ? 'Pengajuan Ruang Jambi' : ($booking->status === 'perlu_revisi' ? 'Revisi Pengajuan Ruang Jambi' : 'Ubah Pengajuan Ruang Jambi');
     $val = fn (string $key, $default = '') => old($key, $default);
-    $selectedFacilities = collect(old('facility_ids', $editing ? $booking->facilities->pluck('id')->all() : []))->map(fn ($id) => (int) $id)->all();
 @endphp
 @section('title', $heading . ' | MLTI')
 @section('content')
@@ -41,7 +40,7 @@
             </div>
         @endif
 
-        <form method="POST" id="rj-form" novalidate
+        <form method="POST" id="rj-form" novalidate enctype="multipart/form-data"
             action="{{ $editing ? route('ruang.update', $booking) : route('ruang.store') }}">
             @csrf
             @if ($editing)
@@ -49,39 +48,18 @@
             @endif
             <div class="row g-4">
                 <div class="col-xl-8">
-                    {{-- 1. Informasi kegiatan --}}
+                    {{-- 1. Informasi acara --}}
                     <div class="card">
                         <div class="card-body pt-4">
                             <div class="rj-step-head mb-3"><span class="rj-step">1</span>
-                                <div><h6>Informasi Kegiatan</h6><small>Detail kegiatan dan waktu pelaksanaan.</small></div>
+                                <div><h6>Informasi Acara</h6><small>Nama acara, tanggal, dan waktu pelaksanaan.</small></div>
                             </div>
                             <div class="row g-3">
                                 <div class="col-12">
-                                    <label class="form-label fw-semibold" for="f-title">Judul kegiatan *</label>
+                                    <label class="form-label fw-semibold" for="f-title">Nama acara *</label>
                                     <input id="f-title" name="title" maxlength="200" class="form-control @error('title') is-invalid @enderror"
-                                        value="{{ $val('title', $booking->title ?? '') }}" placeholder="Contoh: Rapat Koordinasi Internal" required>
+                                        value="{{ $val('title', $booking->title ?? '') }}" placeholder="Contoh: Rapat Koordinasi Pembinaan Statistik Sektoral" required>
                                     @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold" for="f-purpose">Agenda / deskripsi</label>
-                                    <textarea id="f-purpose" name="purpose" rows="2" class="form-control" placeholder="Opsional. Agenda atau tujuan kegiatan.">{{ $val('purpose', $booking->purpose ?? '') }}</textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold" for="f-pic">Penanggung jawab *</label>
-                                    <input id="f-pic" name="pic" class="form-control @error('pic') is-invalid @enderror"
-                                        value="{{ $val('pic', $booking->pic ?? auth()->user()->name) }}" required>
-                                    @error('pic')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold" for="f-participants">Jumlah peserta *</label>
-                                    <div class="input-group has-validation">
-                                        <input id="f-participants" type="number" name="participants" min="2" max="1000" inputmode="numeric"
-                                            class="form-control @error('participants') is-invalid @enderror"
-                                            value="{{ $val('participants', $booking->participants ?? '') }}" placeholder="Contoh: 15" required>
-                                        <span class="input-group-text">orang</span>
-                                        @error('participants')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                    </div>
-                                    <small class="text-muted" id="capacity-hint"></small>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-semibold" for="f-date">Tanggal *</label>
@@ -91,7 +69,7 @@
                                     @error('date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold" for="f-start">Jam mulai (WIB) *</label>
+                                    <label class="form-label fw-semibold" for="f-start">Waktu mulai (WIB) *</label>
                                     <select id="f-start" name="start" class="form-select @error('start') is-invalid @enderror" required>
                                         <option value="">Pilih jam</option>
                                         @foreach (array_slice($timeOptions, 0, -1) as $t)
@@ -101,7 +79,7 @@
                                     @error('start')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold" for="f-end">Jam selesai (WIB) *</label>
+                                    <label class="form-label fw-semibold" for="f-end">Waktu selesai (WIB) *</label>
                                     <select id="f-end" name="end" class="form-select @error('end') is-invalid @enderror" required>
                                         <option value="">Pilih jam</option>
                                         @foreach (array_slice($timeOptions, 1) as $t)
@@ -110,19 +88,32 @@
                                     </select>
                                     @error('end')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
-                                <div class="col-12"><small class="text-muted"><i class="bi bi-info-circle me-1"></i>Jam operasional {{ config('ruang_jambi.open_time') }}–{{ config('ruang_jambi.close_time') }} WIB, durasi maksimal {{ config('ruang_jambi.max_duration_hours') }} jam.</small></div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="f-participants">Jumlah peserta *</label>
+                                    <div class="input-group has-validation">
+                                        <input id="f-participants" type="number" name="participants" min="2" max="1000" inputmode="numeric"
+                                            class="form-control @error('participants') is-invalid @enderror"
+                                            value="{{ $val('participants', $booking->participants ?? '') }}" placeholder="Contoh: 20" required>
+                                        <span class="input-group-text">orang</span>
+                                        @error('participants')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    </div>
+                                    <small class="text-muted" id="capacity-hint"></small>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Jam operasional {{ config('ruang_jambi.open_time') }}–{{ config('ruang_jambi.close_time') }} WIB, durasi maksimal {{ config('ruang_jambi.max_duration_hours') }} jam.</small>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {{-- 2. Pilih ruangan --}}
+                    {{-- 2. Tempat / ruangan --}}
                     <div class="card">
                         <div class="card-body pt-4">
                             <div class="rj-step-head mb-3"><span class="rj-step">2</span>
-                                <div><h6>Pilih Ruangan *</h6><small>Ketersediaan dihitung dari tanggal, jam, dan jumlah peserta.</small></div>
+                                <div><h6>Tempat / Ruangan *</h6><small>Ketersediaan dihitung dari tanggal, jam, dan jumlah peserta.</small></div>
                             </div>
                             <div class="alert alert-light border small mb-3" id="room-hint">
-                                <i class="bi bi-door-open me-1"></i>Lengkapi tanggal, jam mulai, dan jam selesai untuk melihat ruangan yang tersedia.
+                                <i class="bi bi-door-open me-1"></i>Lengkapi tanggal, waktu mulai, dan waktu selesai untuk melihat ruangan yang tersedia.
                             </div>
                             <div role="radiogroup" aria-label="Pilihan ruangan" id="room-list">
                                 @forelse ($rooms as $room)
@@ -161,41 +152,118 @@
                         </div>
                     </div>
 
-                    {{-- 3. Fasilitas tambahan --}}
+                    {{-- 3. Layout & pejabat --}}
                     <div class="card">
                         <div class="card-body pt-4">
                             <div class="rj-step-head mb-3"><span class="rj-step">3</span>
-                                <div><h6>Fasilitas Tambahan</h6><small>Pilih fasilitas di luar fasilitas tetap ruangan.</small></div>
+                                <div><h6>Layout Tempat / Ruangan *</h6><small>Tim Umum menata ruangan sesuai layout yang dipilih.</small></div>
                             </div>
-                            <div class="row g-2">
-                                @forelse ($facilities as $facility)
-                                    <div class="col-md-6 col-lg-4">
-                                        <label class="rj-facility">
-                                            <input type="checkbox" class="form-check-input" name="facility_ids[]" value="{{ $facility->id }}"
-                                                data-name="{{ $facility->name }}" @checked(in_array($facility->id, $selectedFacilities, true))>
-                                            <span><span class="d-block fw-semibold small">{{ $facility->name }}</span>
-                                                <small class="text-muted">{{ $facility->description }}</small></span>
+                            <div class="row g-2" role="radiogroup" aria-label="Layout ruangan" id="layout-list">
+                                @foreach ($layouts as $key => [$label, $desc, $icon])
+                                    <div class="col-md-6">
+                                        <label class="rj-facility rj-layout">
+                                            <input type="radio" class="form-check-input" name="layout" value="{{ $key }}" data-name="{{ $label }}"
+                                                @checked($val('layout', $booking->layout ?? '') === $key)>
+                                            <i class="bi {{ $icon }} rj-layout-icon"></i>
+                                            <span><span class="d-block fw-semibold small">{{ $label }}</span>
+                                                <small class="text-muted">{{ $desc }}</small></span>
                                         </label>
                                     </div>
-                                @empty
-                                    <div class="col-12 text-muted small">Belum ada fasilitas tambahan.</div>
-                                @endforelse
+                                @endforeach
                             </div>
-                            <label class="form-label fw-semibold mt-3" for="f-other">Kebutuhan lainnya</label>
-                            <input id="f-other" name="other_needs" class="form-control" value="{{ $val('other_needs', $booking->other_needs ?? '') }}"
-                                placeholder="Opsional. Contoh: kabel HDMI tambahan, meja registrasi.">
+                            @error('layout')<div class="text-danger small fw-semibold mt-1">{{ $message }}</div>@enderror
+
+                            <label class="form-label fw-semibold mt-4 d-block">Pejabat yang duduk di depan *</label>
+                            @php $officials = (string) $val('officials_count', $booking?->officials_count ?? 0); @endphp
+                            <div class="rj-options" role="group" aria-label="Jumlah pejabat di depan" id="officials-group">
+                                @for ($i = 0; $i <= config('ruang_jambi.max_officials'); $i++)
+                                    <input type="radio" class="btn-check" name="officials_count" id="f-officials-{{ $i }}" value="{{ $i }}" @checked($officials === (string) $i)>
+                                    <label class="btn btn-outline-secondary btn-sm" for="f-officials-{{ $i }}">{{ $i === 0 ? 'Tidak Ada' : "$i Orang" }}</label>
+                                @endfor
+                            </div>
+                            <small class="d-block text-muted mt-1">Untuk menyiapkan kursi, papan nama, dan mikrofon di meja depan.</small>
+                            @error('officials_count')<div class="text-danger small fw-semibold mt-1">{{ $message }}</div>@enderror
                         </div>
                     </div>
 
-                    {{-- 4. Catatan --}}
+                    {{-- 4. Penanggung jawab & kepanitiaan --}}
                     <div class="card">
                         <div class="card-body pt-4">
                             <div class="rj-step-head mb-3"><span class="rj-step">4</span>
-                                <div><h6>Catatan Tambahan</h6><small>Opsional. Informasi untuk Tim Umum.</small></div>
+                                <div><h6>Penanggung Jawab & Kepanitiaan</h6><small>Tim kerja yang bertanggung jawab atas acara.</small></div>
                             </div>
-                            <textarea name="notes" rows="3" class="form-control" placeholder="Contoh: peserta dari 3 satker, perlu tata letak U-shape.">{{ $val('notes', $booking->notes ?? '') }}</textarea>
+                            @php
+                                $currentPic = $editing ? (string) $booking->pic : '';
+                                $picChoice = old('pic_choice', $currentPic === '' ? '' : (in_array($currentPic, $picOptions, true) ? $currentPic : 'lainnya'));
+                                $picOther = old('pic_other', $picChoice === 'lainnya' ? $currentPic : '');
+                            @endphp
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold" for="f-pic">Penanggung jawab acara *</label>
+                                    <select id="f-pic" name="pic_choice" class="form-select @error('pic_choice') is-invalid @enderror @error('pic') is-invalid @enderror" required>
+                                        <option value="">Pilih penanggung jawab</option>
+                                        @foreach ($picOptions as $option)
+                                            <option value="{{ $option }}" @selected($picChoice === $option)>{{ $option }}</option>
+                                        @endforeach
+                                        <option value="lainnya" @selected($picChoice === 'lainnya')>Lainnya…</option>
+                                    </select>
+                                    @error('pic_choice')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    <input id="f-pic-other" name="pic_other" maxlength="150" class="form-control mt-2 @error('pic') is-invalid @enderror {{ $picChoice === 'lainnya' ? '' : 'd-none' }}"
+                                        value="{{ $picOther }}" placeholder="Tuliskan penanggung jawab, mis. Tim CAN">
+                                    @error('pic')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold" for="f-committee">Susunan kepanitiaan</label>
+                                    <div class="d-flex flex-column flex-sm-row gap-2">
+                                        <select id="f-committee" name="committee" class="form-select flex-grow-1 @error('committee') is-invalid @enderror">
+                                            <option value="">Tidak ada / belum ditentukan</option>
+                                            @foreach ($committees as $key => [$label, $url])
+                                                <option value="{{ $key }}" data-url="{{ $url }}" @selected($val('committee', $booking->committee ?? '') === $key)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <a class="btn btn-outline-secondary text-nowrap disabled" id="committee-link" href="#" target="_blank" rel="noopener" aria-disabled="true">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>Buka template
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">Pilih salah satu template kepanitiaan, lalu lengkapi isiannya sesuai kebutuhan acara.</small>
+                                    @error('committee')<div class="text-danger small fw-semibold mt-1">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    {{-- 5. Dokumen --}}
+                    <div class="card">
+                        <div class="card-body pt-4">
+                            <div class="rj-step-head mb-3"><span class="rj-step">5</span>
+                                <div><h6>Dokumen Pendukung</h6><small>PDF, JPG, PNG, atau Word, maksimal 5 MB per berkas.</small></div>
+                            </div>
+                            @php $accept = collect(config('ruang_jambi.document_mimes'))->map(fn ($m) => '.' . $m)->implode(','); @endphp
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="f-memo">Nota dinas {{ $editing && $booking->memo_path ? '' : '*' }}</label>
+                                    <input id="f-memo" type="file" name="memo" accept="{{ $accept }}" class="form-control @error('memo') is-invalid @enderror">
+                                    @error('memo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @if ($editing && $booking->memo_path)
+                                        <small class="d-block mt-1"><i class="bi bi-paperclip me-1"></i>Berkas saat ini:
+                                            <a href="{{ route('ruang.document', [$booking, 'nota-dinas']) }}" target="_blank">{{ $booking->memo_name }}</a>. Unggah ulang untuk mengganti.</small>
+                                    @endif
+                                    <small class="d-block text-muted mt-1">Format nota dinas: <a href="{{ config('ruang_jambi.memo_template_url') }}" target="_blank" rel="noopener">{{ str_replace('http://', '', config('ruang_jambi.memo_template_url')) }}</a></small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="f-letter">Surat pendukung</label>
+                                    <input id="f-letter" type="file" name="letter" accept="{{ $accept }}" class="form-control @error('letter') is-invalid @enderror">
+                                    @error('letter')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @if ($editing && $booking->letter_path)
+                                        <small class="d-block mt-1"><i class="bi bi-paperclip me-1"></i>Berkas saat ini:
+                                            <a href="{{ route('ruang.document', [$booking, 'surat-pendukung']) }}" target="_blank">{{ $booking->letter_name }}</a>. Unggah ulang untuk mengganti.</small>
+                                    @endif
+                                    <small class="d-block text-muted mt-1">Opsional. Dapat berupa surat undangan yang menggambarkan tema acara secara umum.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 {{-- Ringkasan --}}
@@ -257,6 +325,8 @@
             const SCHEDULE = @json($schedule);
             const BLOCKS = @json($blocks);
             const EXCLUDE_ID = @json($booking?->id);
+            const EXISTING_MEMO = @json($booking?->memo_name);
+            const MAX_BYTES = {{ (int) config('ruang_jambi.document_max_kb') }} * 1024;
             const esc = BookingCalendar.escape;
             const $ = id => document.getElementById(id);
             const form = $('rj-form');
@@ -284,7 +354,8 @@
                 const others = SCHEDULE.filter(b => b.room_id === room.id && b.id !== EXCLUDE_ID && overlap(b));
                 const used = others.find(b => b.status === 'disetujui');
                 if (used) return { key: 'in_use', label: 'Terpakai', color: 'danger', blocked: true, reason: `Tidak tersedia: sudah dipesan untuk "${used.title}" (${hm(used.start)}–${hm(used.end)}).` };
-                if (v.participants > room.capacity) return { key: 'over', label: 'Melebihi kapasitas', color: 'danger', blocked: true, reason: `Tidak sesuai: peserta (${v.participants}) melebihi kapasitas (${room.capacity}).` };
+                // Melebihi kapasitas hanya peringatan: ruangan tetap dapat dipilih, keputusan ada pada Tim Umum.
+                if (v.participants > room.capacity) return { key: 'over', label: 'Melebihi kapasitas', color: 'warning text-dark', blocked: false, reason: `Perhatian: peserta (${v.participants}) melebihi kapasitas ruangan (${room.capacity} orang). Ruangan tetap dapat diajukan; keputusan ada pada Tim Umum.` };
                 if (others.length) return { key: 'pending', label: 'Ada pengajuan menunggu', color: 'warning text-dark', blocked: false, reason: 'Ada pengajuan lain yang menunggu persetujuan pada jam ini. Ruangan tetap dapat diajukan; keputusan ada pada Tim Umum.' };
                 return { key: 'free', label: 'Tersedia', color: 'success', blocked: false, reason: '' };
             }
@@ -316,22 +387,49 @@
                     el.classList.toggle('selected', input.checked);
                 });
                 const selected = ROOMS.find(r => String(r.id) === values().roomId);
-                $('capacity-hint').textContent = selected ? `Kapasitas ${selected.name}: ${selected.capacity} orang` : '';
+                const over = selected && v.participants > selected.capacity;
+                $('capacity-hint').textContent = selected ? `Kapasitas ${selected.name}: ${selected.capacity} orang${over ? ' — jumlah peserta melebihi kapasitas.' : ''}` : '';
+                $('capacity-hint').className = over ? 'text-warning-emphasis fw-semibold small' : 'text-muted small';
                 renderSummary();
             }
+
+            function picValue() {
+                return $('f-pic').value === 'lainnya' ? $('f-pic-other').value.trim() : $('f-pic').value;
+            }
+
+            // "Lainnya" membuka isian bebas; template kepanitiaan dapat dibuka langsung.
+            function refreshPicAndCommittee() {
+                const other = $('f-pic').value === 'lainnya';
+                $('f-pic-other').classList.toggle('d-none', !other);
+                $('f-pic-other').required = other;
+                const url = ($('f-committee').selectedOptions[0] || {}).dataset?.url;
+                const link = $('committee-link');
+                link.href = url || '#';
+                link.classList.toggle('disabled', !url);
+                link.setAttribute('aria-disabled', url ? 'false' : 'true');
+            }
+            $('f-pic').addEventListener('change', () => { refreshPicAndCommittee(); if ($('f-pic').value === 'lainnya') $('f-pic-other').focus(); });
+            $('f-committee').addEventListener('change', refreshPicAndCommittee);
+            refreshPicAndCommittee();
 
             function summaryRows() {
                 const v = values();
                 const room = ROOMS.find(r => String(r.id) === v.roomId);
-                const facilities = [...form.querySelectorAll('[name="facility_ids[]"]:checked')].map(i => i.dataset.name);
-                const other = $('f-other').value.trim();
+                const layout = form.querySelector('[name=layout]:checked');
+                const officials = Number((form.querySelector('[name=officials_count]:checked') || {}).value || 0);
+                const committee = $('f-committee').selectedOptions[0];
+                const memo = $('f-memo').files[0] ? $('f-memo').files[0].name : EXISTING_MEMO;
                 return [
                     ['bi-door-open', 'Ruangan', room ? `${room.name} (${room.capacity} orang)` : ''],
                     ['bi-calendar-event', 'Tanggal', v.date ? fmtDate(v.date) : ''],
                     ['bi-clock', 'Waktu', v.start && v.end ? `${v.start} – ${v.end} WIB` : ''],
                     ['bi-people', 'Peserta', v.participants ? `${v.participants} orang` : ''],
-                    ['bi-plus-circle', 'Fasilitas tambahan', facilities.concat(other ? ['Lainnya: ' + other] : []).join(', ')],
-                ];
+                    ['bi-grid-1x2', 'Layout', layout ? layout.dataset.name : ''],
+                    ['bi-person-badge', 'Pejabat di depan', officials ? `${officials} orang` : 'Tidak ada'],
+                    ['bi-person-check', 'Penanggung jawab', picValue()],
+                    ['bi-diagram-3', 'Kepanitiaan', committee && committee.value ? committee.textContent : ''],
+                    ['bi-file-earmark-text', 'Nota dinas', memo || ''],
+                ].filter(([, label, value]) => value || label !== 'Kepanitiaan');
             }
 
             function renderSummary() {
@@ -345,14 +443,21 @@
             function firstError() {
                 const v = values();
                 const title = $('f-title').value.trim();
-                if (title.length < 5) return ['f-title', 'Judul kegiatan minimal 5 karakter.'];
-                if (!$('f-pic').value.trim()) return ['f-pic', 'Penanggung jawab wajib diisi.'];
-                if (v.participants < 2) return ['f-participants', 'Jumlah peserta minimal 2 orang.'];
+                if (title.length < 5) return ['f-title', 'Nama acara minimal 5 karakter.'];
                 if (!v.date) return ['f-date', 'Tanggal wajib diisi.'];
-                if (!v.start) return ['f-start', 'Jam mulai wajib dipilih.'];
-                if (!v.end || v.end <= v.start) return ['f-end', 'Jam selesai harus lebih dari jam mulai.'];
-                if (v.s <= new Date()) return ['f-start', 'Jam mulai sudah terlewati.'];
+                if (!v.start) return ['f-start', 'Waktu mulai wajib dipilih.'];
+                if (!v.end || v.end <= v.start) return ['f-end', 'Waktu selesai harus lebih dari waktu mulai.'];
+                if (v.s <= new Date()) return ['f-start', 'Waktu mulai sudah terlewati.'];
+                if (v.participants < 2) return ['f-participants', 'Jumlah peserta minimal 2 orang.'];
                 if (!v.roomId) return ['room-list', 'Pilih salah satu ruangan yang tersedia.'];
+                if (!form.querySelector('[name=layout]:checked')) return ['layout-list', 'Pilih layout tempat/ruangan.'];
+                if (!$('f-pic').value) return ['f-pic', 'Pilih penanggung jawab acara.'];
+                if ($('f-pic').value === 'lainnya' && !$('f-pic-other').value.trim()) return ['f-pic-other', 'Tuliskan nama penanggung jawab acara.'];
+                if (!EXISTING_MEMO && !$('f-memo').files.length) return ['f-memo', 'Nota dinas wajib diunggah.'];
+                for (const id of ['f-memo', 'f-letter']) {
+                    const file = $(id).files[0];
+                    if (file && file.size > MAX_BYTES) return [id, `Ukuran berkas "${file.name}" melebihi 5 MB.`];
+                }
                 return null;
             }
 

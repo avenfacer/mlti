@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\QrPusat;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,7 @@ class QrLoginController extends Controller
         if (Auth::check()) {
             return redirect()->route('portal');
         }
+
         return view('auth.login');
     }
 
@@ -26,7 +28,7 @@ class QrLoginController extends Controller
         $qrString = trim($request->input('qr_string'));
 
         // Match against qr_pusats table first to find id_user
-        $qrMatch = \App\Models\QrPusat::where('qr_pusat', $qrString)->first();
+        $qrMatch = QrPusat::where('qr_pusat', $qrString)->first();
 
         $userId = null;
         if ($qrMatch) {
@@ -34,7 +36,7 @@ class QrLoginController extends Controller
         } else {
             // Fallback: match directly against nip_lama (useful for manual entry or direct NIP scans)
             if (is_numeric($qrString)) {
-                $userId = (int)$qrString;
+                $userId = (int) $qrString;
             }
         }
 
@@ -44,16 +46,17 @@ class QrLoginController extends Controller
             if ($user) {
                 Auth::login($user, true); // login with remember
                 $request->session()->regenerate();
+
                 return response()->json([
                     'success' => true,
-                    'redirect' => route('portal')
+                    'redirect' => route('portal'),
                 ]);
             }
         }
 
         return response()->json([
             'success' => false,
-            'message' => 'NIP Lama tidak terdaftar atau QR Code tidak cocok!'
+            'message' => 'NIP Lama tidak terdaftar atau QR Code tidak cocok!',
         ], 404);
     }
 
@@ -62,6 +65,7 @@ class QrLoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect()->route('portal');
     }
 }

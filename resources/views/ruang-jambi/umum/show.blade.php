@@ -27,7 +27,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title my-0"><i class="bi bi-wrench-adjustable me-1"></i>Form Tindak Lanjut</h5>
-                        <a href="{{ route('umum.ruang.index') }}" class="btn btn-sm btn-secondary">Kembali</a>
+                        <a href="{{ route('umum.ruang.index') }}" class="btn btn-sm btn-light"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
                     </div>
                     <div class="card-body pt-3">
                         @if ($booking->status === 'menunggu')

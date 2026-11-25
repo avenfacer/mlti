@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['booking_code', 'requested_by', 'type', 'room_id', 'id_zoom_room', 'title', 'purpose', 'pic', 'participants', 'other_needs', 'notes', 'live_streaming', 'admin_notes', 'starts_at', 'ends_at', 'status'])]
+#[Fillable(['booking_code', 'requested_by', 'type', 'room_id', 'id_zoom_room', 'title', 'purpose', 'pic', 'participants', 'layout', 'officials_count', 'committee', 'memo_path', 'memo_name', 'letter_path', 'letter_name', 'other_needs', 'notes', 'live_streaming', 'admin_notes', 'starts_at', 'ends_at', 'status'])]
 class Booking extends Model
 {
     public const MENUNGGU = 'menunggu';
@@ -33,7 +33,34 @@ class Booking extends Model
     /** Status yang memblokir ruang (reservasi terkonfirmasi). */
     public const BLOCKING = [self::DISETUJUI, self::SELESAI];
 
-    protected $casts = ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'live_streaming' => 'boolean'];
+    protected $casts = ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'live_streaming' => 'boolean', 'officials_count' => 'integer'];
+
+    /** Dokumen yang dapat diunggah: key route => [kolom path, kolom nama asli, label]. */
+    public const DOCUMENTS = [
+        'nota-dinas' => ['memo_path', 'memo_name', 'Nota Dinas'],
+        'surat-pendukung' => ['letter_path', 'letter_name', 'Surat Pendukung'],
+    ];
+
+    /** @return array{0: string, 1: string, 2: string}|null [label, keterangan, ikon] */
+    public function layoutInfo(): ?array
+    {
+        return $this->layout ? (config('ruang_jambi.layouts')[$this->layout] ?? [$this->layout, '', 'bi-grid']) : null;
+    }
+
+    /** @return array{0: string, 1: string}|null [label, tautan template] */
+    public function committeeInfo(): ?array
+    {
+        return $this->committee ? (config('ruang_jambi.committees')[$this->committee] ?? null) : null;
+    }
+
+    public function officialsLabel(): ?string
+    {
+        if ($this->officials_count === null) {
+            return null;
+        }
+
+        return $this->officials_count === 0 ? 'Tidak Ada' : "{$this->officials_count} Orang";
+    }
 
     public function requester()
     {

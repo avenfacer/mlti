@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RoomBookingRequest;
 use App\Models\Booking;
-use App\Models\Facility;
 use App\Models\MaintenanceBlock;
 use App\Models\MeetingRoom;
 use App\Services\RoomBookingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Ruang Jambi (sisi pegawai): ajukan, ubah/revisi, lihat, dan batalkan pengajuan ruang rapat.
@@ -38,7 +38,7 @@ class RoomBookingController extends Controller
         if (! $booking->isEditable()) {
             return redirect()->route('ruang.show', $booking)->with('error', 'Pengajuan hanya dapat diubah selama berstatus Menunggu atau Perlu Revisi.');
         }
-        $booking->load(['facilities:id', 'histories']);
+        $booking->load('histories');
 
         return view('ruang-jambi.form', $this->formData($booking));
     }
@@ -64,7 +64,7 @@ class RoomBookingController extends Controller
     public function show(Request $request, Booking $booking)
     {
         $this->authorizeOwner($request, $booking);
-        $booking->load(['room', 'meetingRoom', 'requester', 'facilities', 'histories']);
+        $booking->load(['room', 'meetingRoom', 'requester', 'histories']);
 
         return view('ruang-jambi.show', compact('booking'));
     }
@@ -78,6 +78,21 @@ class RoomBookingController extends Controller
         return redirect()->route('ruang.show', $booking)->with('success', 'Pengajuan berhasil dibatalkan.');
     }
 
+    /** Unduh nota dinas / surat pendukung. Hanya pemohon dan Tim Umum/Jarkom. */
+    public function document(Request $request, Booking $booking, string $document)
+    {
+        abort_unless($booking->type === 'room', 404);
+        $user = $request->user();
+        $isReviewer = (int) $user->is_umum === 1 || (int) $user->is_jarkom === 1;
+        abort_unless($isReviewer || (int) $booking->requested_by === (int) $user->nip_lama, 403);
+
+        [$pathColumn, $nameColumn] = Booking::DOCUMENTS[$document] ?? abort(404);
+        $path = $booking->{$pathColumn};
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, $booking->{$nameColumn} ?: basename($path));
+    }
+
     private function authorizeOwner(Request $request, Booking $booking): void
     {
         abort_unless($booking->type === 'room', 404);
@@ -89,7 +104,6 @@ class RoomBookingController extends Controller
     {
         $rooms = MeetingRoom::with(['room', 'facilities' => fn ($q) => $q->where('active', true)])->get()
             ->sortBy(fn (MeetingRoom $r) => $r->name)->values();
-        $facilities = Facility::additional()->where('active', true)->orderBy('name')->get();
 
         $from = now()->subDays(45)->startOfDay();
         $schedule = Booking::with('room')->where('type', 'room')->where('ends_at', '>=', $from)
@@ -126,12 +140,14 @@ class RoomBookingController extends Controller
         return [
             'booking' => $booking,
             'rooms' => $rooms,
-            'facilities' => $facilities,
             'schedule' => $schedule,
             'blocks' => $blocks,
             'roomsJson' => $roomsJson,
             'revisionNote' => $revisionNote,
             'timeOptions' => $this->timeOptions(),
+            'layouts' => config('ruang_jambi.layouts'),
+            'picOptions' => config('ruang_jambi.pic_options'),
+            'committees' => config('ruang_jambi.committees'),
             // Rentang jam kalender: jam buka (dibulatkan ke bawah) s.d. jam tutup (dibulatkan ke atas).
             'calendarHours' => [
                 (int) explode(':', config('ruang_jambi.open_time'))[0],

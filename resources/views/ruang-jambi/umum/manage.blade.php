@@ -33,7 +33,7 @@
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#roomModal" data-mode="create" @disabled($availableRooms->isEmpty())><i class="bi bi-plus-lg me-1"></i>Tambah Ruang Rapat</button>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 rj-table">
                             <thead class="table-light"><tr><th>Ruang</th><th>Kapasitas</th><th>Fasilitas tetap</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
                             <tbody>
                                 @forelse ($meetingRooms as $room)
@@ -43,7 +43,7 @@
                                         <td>@forelse ($room->facilities as $f)<span class="rj-chip">{{ $f->name }}</span>@empty<span class="text-muted">-</span>@endforelse</td>
                                         <td><span class="badge bg-{{ $room->active ? 'success' : 'secondary' }}">{{ $room->active ? 'Aktif' : 'Nonaktif' }}</span></td>
                                         <td class="text-center text-nowrap">
-                                            <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#roomModal" data-mode="edit"
+                                            <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#roomModal" data-mode="edit" title="Ubah" aria-label="Ubah"
                                                 data-room="{{ json_encode(['name' => $room->name, 'location' => $room->location, 'capacity' => $room->capacity, 'description' => $room->description, 'facility_ids' => $room->facilities->pluck('id')->map(fn ($id) => (int) $id)]) }}"
                                                 data-action="{{ route('umum.ruang.manage.rooms.update', $room) }}"><i class="bi bi-pencil"></i></button>
                                             <form method="POST" action="{{ route('umum.ruang.manage.rooms.toggle', $room) }}" class="d-inline">@csrf
@@ -64,7 +64,7 @@
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#facilityModal" data-mode="create"><i class="bi bi-plus-lg me-1"></i>Tambah Fasilitas</button>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 rj-table">
                             <thead class="table-light"><tr><th>Nama</th><th>Jenis</th><th>Stok</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
                             <tbody>
                                 @forelse ($facilities as $facility)
@@ -74,7 +74,7 @@
                                         <td>{{ $facility->stock ?? '-' }}</td>
                                         <td><span class="badge bg-{{ $facility->active ? 'success' : 'secondary' }}">{{ $facility->active ? 'Aktif' : 'Nonaktif' }}</span></td>
                                         <td class="text-center text-nowrap">
-                                            <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#facilityModal" data-mode="edit"
+                                            <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#facilityModal" data-mode="edit" title="Ubah" aria-label="Ubah"
                                                 data-facility="{{ json_encode($facility->only(['name', 'type', 'description', 'stock'])) }}"
                                                 data-action="{{ route('umum.ruang.manage.facilities.update', $facility) }}"><i class="bi bi-pencil"></i></button>
                                             <form method="POST" action="{{ route('umum.ruang.manage.facilities.toggle', $facility) }}" class="d-inline">@csrf
@@ -93,7 +93,7 @@
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#blockModal" @disabled($meetingRooms->isEmpty())><i class="bi bi-plus-lg me-1"></i>Tambah Jadwal Maintenance</button>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 rj-table">
                             <thead class="table-light"><tr><th>Ruang</th><th>Mulai</th><th>Selesai</th><th>Alasan</th><th>Dibuat oleh</th><th class="text-center">Aksi</th></tr></thead>
                             <tbody>
                                 @forelse ($blocks as $block)

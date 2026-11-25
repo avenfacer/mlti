@@ -36,7 +36,7 @@ class RoomBookingReviewController extends Controller
     public function show(Booking $booking)
     {
         abort_unless($booking->type === 'room', 404);
-        $booking->load(['room', 'meetingRoom', 'requester', 'facilities', 'histories']);
+        $booking->load(['room', 'meetingRoom', 'requester', 'histories']);
 
         // Peringatan dini: apakah pengajuan ini masih bisa disetujui?
         $conflicts = $booking->status === Booking::MENUNGGU

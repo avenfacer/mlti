@@ -40,10 +40,28 @@
     .rj-facility { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; height: 100%; }
     .rj-facility:has(input:checked) { border-color: var(--color-primary); background: var(--rj-soft); }
     .rj-facility input { margin-top: 3px; accent-color: var(--color-primary); }
+    .rj-layout { align-items: flex-start; }
+    .rj-layout-icon { font-size: 1.3rem; color: var(--color-primary); line-height: 1; margin-top: 1px; }
+    /* Pilihan tombol (jumlah pejabat): berjarak dan tetap rapi saat turun baris */
+    .rj-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rj-options .btn { min-width: 92px; border-radius: 8px !important; }
+    .rj-options .btn-check:checked + .btn { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+    /* Tombol aksi di tabel: diberi jarak, tidak menempel */
+    .rj-actions { display: inline-flex; gap: 6px; flex-wrap: nowrap; }
+    /* Tabel tetap terbaca di layar kecil (digeser horizontal, bukan dipecah per kata) */
+    @media (max-width: 768px) { .rj-table { min-width: 720px; } }
+    .rj-doc { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: .85rem; margin: 2px 6px 2px 0; text-decoration: none; }
+    .rj-doc:hover { border-color: var(--color-primary); }
 
     /* Ringkasan pemesanan: pita gradien selebar kartu (kartu tema ber-padding 24px) */
     .rj-summary-head { margin: -24px -24px 16px; padding: 16px 24px; border-radius: 12px 12px 0 0; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); }
     .rj-summary-head h6, .rj-summary-head small { color: #fff !important; }
+    @media (max-width: 768px) { .rj-summary-head { margin: -16px -16px 16px; padding: 14px 16px; border-radius: 14px 14px 0 0; } }
+
+    /* Kartu aksi: kelompok tindakan dipisah garis agar tidak berdempet */
+    .rj-action-group + .rj-action-group { border-top: 1px dashed var(--border-color); padding-top: 14px; margin-top: 14px; }
+    .rj-action-label { font-size: .78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
     .rj-summary dt { font-size: .72rem; color: #b59fa8; font-weight: 500; }
     .rj-summary dd { font-weight: 600; margin-bottom: 10px; color: var(--text-primary); }
     .rj-summary dd.empty { font-weight: 400; font-style: italic; color: #c9b8c0; }

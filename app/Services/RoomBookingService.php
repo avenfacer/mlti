@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
+use App\Jobs\SyncRoomBookingToSheet;
 use App\Models\Booking;
 use App\Models\BookingHistory;
 use App\Models\MaintenanceBlock;
 use App\Models\MeetingRoom;
 use App\Models\User;
 use App\Notifications\RoomBookingNotification;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,7 +30,7 @@ class RoomBookingService
      *
      * - Hanya pengajuan "disetujui" / "selesai" yang memblokir ruang.
      * - Blok maintenance dan ruang nonaktif memblokir pemesanan.
-     * - Jumlah peserta tidak boleh melebihi kapasitas.
+     * - Jumlah peserta melebihi kapasitas hanya peringatan (lihat form/detail), tidak memblokir.
      *
      * @return list<string>
      */
@@ -40,9 +43,6 @@ class RoomBookingService
         $reasons = [];
         if (! $room->active) {
             $reasons[] = 'Ruangan sedang nonaktif.';
-        }
-        if ($participants > $room->capacity) {
-            $reasons[] = "Jumlah peserta ({$participants}) melebihi kapasitas ruangan ({$room->capacity}).";
         }
 
         $conflict = Booking::query()->overlapping($room->room_id, $start, $end)
@@ -72,7 +72,7 @@ class RoomBookingService
                 'requested_by' => $actor->nip_lama,
                 'status' => Booking::MENUNGGU,
             ]);
-            $booking->facilities()->sync($input['facility_ids'] ?? []);
+            $this->storeDocuments($booking, $input);
             $this->log($booking, $actor, 'diajukan');
             $this->notifyReviewers($booking, $actor, 'Pengajuan Ruang Jambi baru', "{$actor->name} mengajukan {$this->summary($booking)}.");
 
@@ -92,7 +92,7 @@ class RoomBookingService
 
             $wasRevision = $booking->status === Booking::PERLU_REVISI;
             $booking->fill($this->attributes($input) + ['status' => Booking::MENUNGGU])->save();
-            $booking->facilities()->sync($input['facility_ids'] ?? []);
+            $this->storeDocuments($booking, $input);
             $this->log($booking, $actor, 'diubah', $wasRevision ? 'Pengajuan direvisi dan diajukan kembali.' : 'Detail pengajuan diperbarui.');
             $this->notifyReviewers($booking, $actor, $wasRevision ? 'Revisi pengajuan Ruang Jambi' : 'Perubahan pengajuan Ruang Jambi', "{$actor->name} memperbarui {$this->summary($booking)}.");
 
@@ -184,6 +184,7 @@ class RoomBookingService
                 'booking_id' => $id, 'actor_nip' => null, 'actor_name' => 'Sistem',
                 'action' => Booking::SELESAI, 'note' => null, 'created_at' => now(),
             ])->all());
+            $ids->each(fn ($id) => $this->syncSheet($id));
         });
 
         return $ids->count();
@@ -230,15 +231,41 @@ class RoomBookingService
 
         return [
             'title' => trim($input['title']),
-            'purpose' => $input['purpose'] ?? '',
+            'purpose' => '',
             'pic' => trim($input['pic']),
             'room_id' => (int) $input['room_id'],
             'participants' => (int) $input['participants'],
-            'other_needs' => $input['other_needs'] ?? null,
-            'notes' => $input['notes'] ?? null,
+            'layout' => $input['layout'] ?? null,
+            'officials_count' => isset($input['officials_count']) ? (int) $input['officials_count'] : null,
+            'committee' => $input['committee'] ?? null,
             'starts_at' => $start,
             'ends_at' => $end,
         ];
+    }
+
+    /**
+     * Simpan nota dinas / surat pendukung yang diunggah ke disk privat; berkas lama
+     * diganti bila pemohon mengunggah ulang saat ubah/revisi.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function storeDocuments(Booking $booking, array $input): void
+    {
+        $changes = [];
+        foreach (['memo' => ['memo_path', 'memo_name'], 'letter' => ['letter_path', 'letter_name']] as $field => [$pathColumn, $nameColumn]) {
+            $file = $input[$field] ?? null;
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+            if ($booking->{$pathColumn}) {
+                Storage::disk('local')->delete($booking->{$pathColumn});
+            }
+            $changes[$pathColumn] = $file->store("ruang-jambi/{$booking->booking_code}", 'local');
+            $changes[$nameColumn] = mb_substr($file->getClientOriginalName(), 0, 200);
+        }
+        if ($changes !== []) {
+            $booking->forceFill($changes)->save();
+        }
     }
 
     private function log(Booking $booking, ?User $actor, string $action, ?string $note = null): void
@@ -252,6 +279,15 @@ class RoomBookingService
             'note' => $note !== '' ? $note : null,
             'created_at' => now(),
         ]);
+        $this->syncSheet($booking->id);
+    }
+
+    /** Setiap perubahan pengajuan ikut disalin ke Google Sheet rekap (bila diaktifkan). */
+    private function syncSheet(int $bookingId): void
+    {
+        if (RoomBookingSheet::enabled()) {
+            SyncRoomBookingToSheet::dispatch($bookingId);
+        }
     }
 
     private function summary(Booking $booking): string

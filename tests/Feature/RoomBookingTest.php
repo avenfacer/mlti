@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SyncRoomBookingToSheet;
 use App\Models\Booking;
 use App\Models\Facility;
 use App\Models\MaintenanceBlock;
@@ -10,9 +11,13 @@ use App\Models\Room;
 use App\Models\Team;
 use App\Models\User;
 use App\Notifications\RoomBookingNotification;
+use App\Services\RoomBookingSheet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RoomBookingTest extends TestCase
@@ -29,6 +34,7 @@ class RoomBookingTest extends TestCase
     {
         parent::setUp();
         Carbon::setTestNow('2026-11-25 08:00:00');
+        Storage::fake('local');
 
         Team::create(['id' => 1, 'fungsi' => 'Umum']);
         Room::create(['id' => 1, 'ruang' => 'Ruang Aula']);
@@ -49,13 +55,17 @@ class RoomBookingTest extends TestCase
     {
         return array_merge([
             'title' => 'Rapat Koordinasi Internal',
-            'purpose' => 'Pembahasan rencana kerja.',
             'pic' => 'Pegawai Satu',
             'date' => '2026-11-26',
             'start' => '09:00',
             'end' => '11:00',
             'participants' => 10,
             'room_id' => 1,
+            'layout' => 'classroom',
+            'officials_count' => 2,
+            'pic_choice' => 'Ketua Tim Kerja Statistik Harga',
+            'committee' => 'rapat',
+            'memo' => UploadedFile::fake()->create('nota-dinas.pdf', 120, 'application/pdf'),
         ], $overrides);
     }
 
@@ -74,29 +84,32 @@ class RoomBookingTest extends TestCase
             ->assertOk()->assertSee('Pengajuan Ruang Jambi')->assertSee('Ruang Aula')->assertDontSee('Gudang');
     }
 
-    public function test_employee_can_submit_booking_with_facilities_and_reviewers_are_notified(): void
+    public function test_employee_can_submit_booking_and_reviewers_are_notified(): void
     {
         Notification::fake();
-        $projector = Facility::create(['name' => 'Proyektor', 'type' => Facility::TAMBAHAN, 'active' => true]);
 
-        $response = $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload(['facility_ids' => [$projector->id]]));
+        $response = $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload());
 
         $booking = Booking::where('type', 'room')->firstOrFail();
         $response->assertRedirect(route('ruang.show', $booking));
         $this->assertStringStartsWith('RJB-', $booking->booking_code);
         $this->assertSame(Booking::MENUNGGU, $booking->status);
         $this->assertSame('2026-11-26 09:00:00', $booking->starts_at->toDateTimeString());
-        $this->assertTrue($booking->facilities->contains($projector));
         $this->assertDatabaseHas('booking_histories', ['booking_id' => $booking->id, 'action' => 'diajukan']);
         Notification::assertSentTo($this->umum, RoomBookingNotification::class);
         Notification::assertNotSentTo($this->employee, RoomBookingNotification::class);
     }
 
-    public function test_booking_rejected_when_participants_exceed_capacity(): void
+    public function test_booking_allowed_when_participants_exceed_capacity_with_warning(): void
     {
+        Notification::fake();
         $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload(['participants' => 50]))
-            ->assertSessionHasErrors('room_id');
-        $this->assertDatabaseCount('bookings', 0);
+            ->assertSessionHasNoErrors();
+        $booking = Booking::firstOrFail();
+        $this->assertSame(50, (int) $booking->participants);
+
+        $this->actingAs($this->employee)->get(route('ruang.show', $booking))
+            ->assertOk()->assertSee('Melebihi kapasitas ruangan (30 orang)');
     }
 
     public function test_booking_rejected_outside_operational_hours_or_in_the_past(): void
@@ -192,6 +205,53 @@ class RoomBookingTest extends TestCase
         $this->actingAs($this->employee)->get(route('general.booking.form', 'zoom'))->assertOk()->assertSee('Pengajuan Zoom');
     }
 
+    public function test_booking_stores_form_details_and_documents_from_google_form_fields(): void
+    {
+        $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload([
+            'pic_choice' => 'lainnya',
+            'pic_other' => 'Tim CAN',
+            'letter' => UploadedFile::fake()->create('undangan.pdf', 80, 'application/pdf'),
+        ]))->assertSessionHasNoErrors();
+
+        $booking = Booking::firstOrFail();
+        $this->assertSame('classroom', $booking->layout);
+        $this->assertSame(2, $booking->officials_count);
+        $this->assertSame('Tim CAN', $booking->pic);
+        $this->assertSame('rapat', $booking->committee);
+        $this->assertSame('nota-dinas.pdf', $booking->memo_name);
+        $this->assertSame('undangan.pdf', $booking->letter_name);
+        Storage::disk('local')->assertExists($booking->memo_path);
+
+        $this->actingAs($this->umum)->get(route('umum.ruang.show', $booking))->assertOk()
+            ->assertSee('Classroom')->assertSee('2 Orang')->assertSee('Tim CAN')->assertSee('Acara Rapat')->assertSee('Nota Dinas');
+        $this->actingAs($this->employee)->get(route('ruang.document', [$booking, 'nota-dinas']))->assertOk();
+        $this->actingAs($this->umum)->get(route('ruang.document', [$booking, 'surat-pendukung']))->assertOk();
+        $other = User::create(['nip_lama' => 340011004, 'name' => 'Pegawai Lain', 'password' => bcrypt('password'), 'fungsi' => 1]);
+        $this->actingAs($other)->get(route('ruang.document', [$booking, 'nota-dinas']))->assertForbidden();
+    }
+
+    public function test_memo_layout_and_pic_are_required_but_memo_is_kept_on_edit(): void
+    {
+        $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload(['memo' => null, 'layout' => 'u_shape', 'pic_choice' => 'lainnya', 'pic_other' => '']))
+            ->assertSessionHasErrors(['memo', 'layout', 'pic']);
+        $this->assertDatabaseCount('bookings', 0);
+
+        $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload());
+        $booking = Booking::firstOrFail();
+        $memo = $booking->memo_path;
+        $this->actingAs($this->employee)->get(route('ruang.edit', $booking))->assertOk()->assertSee('nota-dinas.pdf');
+
+        $this->actingAs($this->employee)->put(route('ruang.update', $booking), $this->payload(['memo' => null, 'layout' => 'round_table']))
+            ->assertSessionHasNoErrors();
+        $booking->refresh();
+        $this->assertSame('round_table', $booking->layout);
+        $this->assertSame($memo, $booking->memo_path);
+
+        $this->actingAs($this->employee)->put(route('ruang.update', $booking), $this->payload(['memo' => UploadedFile::fake()->create('nota-baru.pdf', 50, 'application/pdf')]));
+        Storage::disk('local')->assertMissing($memo);
+        $this->assertSame('nota-baru.pdf', $booking->fresh()->memo_name);
+    }
+
     public function test_non_umum_users_cannot_access_review_and_manage_pages(): void
     {
         $this->actingAs($this->employee)->get(route('umum.ruang.index'))->assertRedirect(route('dashboard'));
@@ -218,5 +278,39 @@ class RoomBookingTest extends TestCase
         $this->actingAs($this->umum)->post(route('umum.ruang.manage.blocks.store'), ['room_id' => 7, 'date' => '2026-11-27', 'start' => '08:00', 'end' => '12:00', 'reason' => 'Pengecatan'])
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_blocks', ['room_id' => 7, 'reason' => 'Pengecatan']);
+    }
+
+    public function test_booking_changes_are_queued_for_google_sheet_when_enabled(): void
+    {
+        Notification::fake();
+        Queue::fake();
+        config(['ruang_jambi.google_sheet' => ['enabled' => true, 'spreadsheet_id' => 'sheet-id', 'sheet' => 'Pengajuan MLTI']]);
+
+        $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload())->assertRedirect();
+        $booking = Booking::firstOrFail();
+        Queue::assertPushed(SyncRoomBookingToSheet::class, fn ($job) => $job->bookingId === $booking->id);
+
+        $row = app(RoomBookingSheet::class)->row($booking);
+        $this->assertCount(count(RoomBookingSheet::HEADER), $row);
+        $this->assertSame($booking->booking_code, $row[0]);
+        $this->assertSame('Rapat Koordinasi Internal', $row[2]);
+        $this->assertSame('Classroom', $row[7]);
+        $this->assertSame('2 Orang', $row[8]);
+        $this->assertSame('Ketua Tim Kerja Statistik Harga', $row[9]);
+        $this->assertSame(route('ruang.document', [$booking, 'nota-dinas']), $row[12]);
+        $this->assertSame('Menunggu', $row[16]);
+
+        $booking->update(['pic' => null]);
+        $this->assertSame('', app(RoomBookingSheet::class)->row($booking->fresh())[9]);
+    }
+
+    public function test_google_sheet_sync_is_skipped_when_disabled(): void
+    {
+        Notification::fake();
+        Queue::fake();
+        config(['ruang_jambi.google_sheet.enabled' => false]);
+
+        $this->actingAs($this->employee)->post(route('ruang.store'), $this->payload())->assertRedirect();
+        Queue::assertNotPushed(SyncRoomBookingToSheet::class);
     }
 }
