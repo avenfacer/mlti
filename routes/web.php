@@ -1,12 +1,15 @@
 <?php
 
-use App\Http\Controllers\Auth\QrLoginController;
-use App\Http\Controllers\Auth\BpsSsoController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Admin\DeviceController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\BpsSsoController;
+use App\Http\Controllers\Auth\QrLoginController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GeneralServiceController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SigapController;
 use Illuminate\Support\Facades\Route;
 
 // Central internal services portal
@@ -46,8 +49,10 @@ Route::prefix('mlti')->group(function () {
         Route::patch('/reports/history/{ticketId}/rating', [ReportController::class, 'rate'])->name('reports.history.rate');
         Route::get('/reports/history/{id}', [ReportController::class, 'showReport'])->name('reports.history.show');
 
-        Route::get('/sigap', [GeneralServiceController::class, 'sigap'])->name('general.sigap');
-        Route::post('/sigap', [GeneralServiceController::class, 'storeSigap'])->name('general.sigap.store');
+        Route::get('/sigap', [SigapController::class, 'create'])->name('general.sigap');
+        Route::post('/sigap', [SigapController::class, 'store'])->name('general.sigap.store');
+        Route::get('/sigap/riwayat', [SigapController::class, 'history'])->name('general.sigap.history');
+        Route::get('/sigap/riwayat/{complaint}', [SigapController::class, 'show'])->name('general.sigap.history.show');
         Route::get('/{type}/pengajuan', [GeneralServiceController::class, 'bookingForm'])->whereIn('type', ['zoom', 'room'])->name('general.booking.form');
         Route::post('/{type}/pengajuan', [GeneralServiceController::class, 'storeBooking'])->whereIn('type', ['zoom', 'room'])->name('general.booking.store');
         Route::get('/{type}/riwayat', [GeneralServiceController::class, 'bookingHistory'])->whereIn('type', ['zoom', 'room'])->name('general.booking.history');
@@ -62,18 +67,24 @@ Route::prefix('mlti')->group(function () {
         Route::patch('/reports/{id}', [AdminReportController::class, 'update'])->name('reports.update');
 
         // CRUD Management resources
-        Route::resource('/users', \App\Http\Controllers\Admin\UserController::class);
-        Route::resource('/devices', \App\Http\Controllers\Admin\DeviceController::class);
+        Route::resource('/users', UserController::class);
+        Route::resource('/devices', DeviceController::class);
 
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::get('/laporan-zoom', [GeneralServiceController::class, 'adminZoomBookings'])->name('zoom-reports');
         Route::get('/laporan-zoom/{booking:booking_code}', [GeneralServiceController::class, 'showZoomBooking'])->name('zoom-reports.show');
         Route::patch('/laporan-zoom/{booking:booking_code}', [GeneralServiceController::class, 'updateZoomBooking'])->name('zoom-reports.update');
     });
 
+    // Notifications are per-user; both Jarkom and Umum teams receive them.
+    Route::middleware(['auth', 'umum'])->prefix('admin')->as('admin.')->group(function () {
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    });
+
     Route::middleware(['auth', 'umum'])->prefix('umum')->as('umum.')->group(function () {
-        Route::get('/laporan-sigap', [GeneralServiceController::class, 'adminComplaints'])->name('complaints');
+        Route::get('/laporan-sigap', [SigapController::class, 'adminIndex'])->name('complaints');
+        Route::get('/laporan-sigap/{complaint}', [SigapController::class, 'adminShow'])->name('complaints.show');
+        Route::patch('/laporan-sigap/{complaint}', [SigapController::class, 'adminUpdate'])->name('complaints.update');
         Route::get('/laporan-ruangan', [GeneralServiceController::class, 'adminBookings'])->name('bookings');
     });
 });

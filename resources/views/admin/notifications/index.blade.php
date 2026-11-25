@@ -32,10 +32,17 @@
                     <i class="bi bi-exclamation-triangle-fill fs-4"></i>
                   </div>
                   <div>
-                    <h6 class="mb-1 text-dark fw-bold">Laporan {{ ucfirst($notif->data['issue_type'] ?? 'Kerusakan') }} Baru</h6>
-                    <p class="mb-1 text-muted small">
-                      Pegawai <strong>{{ $notif->data['reporter_name'] ?? 'N/A' }}</strong> melaporkan kerusakan pada perangkat <strong>{{ $notif->data['device_series'] ?? 'N/A' }}</strong> (BMN: {{ $notif->data['device_id'] ?? '-' }}).
-                    </p>
+                    @if(($notif->data['kind'] ?? null) === 'sigap')
+                      <h6 class="mb-1 text-dark fw-bold">{{ $notif->data['title'] ?? 'Pengaduan SIGAP Baru' }}</h6>
+                      <p class="mb-1 text-muted small">
+                        Pegawai <strong>{{ $notif->data['reporter_name'] ?? 'N/A' }}</strong> mengadukan kerusakan di <strong>{{ $notif->data['location'] ?? '-' }}</strong> (Tiket: {{ $notif->data['report_id'] ?? '-' }}).
+                      </p>
+                    @else
+                      <h6 class="mb-1 text-dark fw-bold">Laporan {{ ucfirst($notif->data['issue_type'] ?? 'Kerusakan') }} Baru</h6>
+                      <p class="mb-1 text-muted small">
+                        Pegawai <strong>{{ $notif->data['reporter_name'] ?? 'N/A' }}</strong> melaporkan kerusakan pada perangkat <strong>{{ $notif->data['device_series'] ?? 'N/A' }}</strong> (BMN: {{ $notif->data['device_id'] ?? '-' }}).
+                      </p>
+                    @endif
                     <blockquote class="bg-light p-2 rounded mb-1 small text-dark italic" style="border-left: 2px solid #ddd; font-style: italic;">
                       "{{ Str::limit($notif->data['description'] ?? '', 80) }}"
                     </blockquote>
@@ -46,7 +53,7 @@
                 </div>
 
                 <div class="d-flex gap-2">
-                  <a href="{{ route('admin.reports.show', $notif->data['report_id']) }}" class="btn btn-sm btn-outline-primary py-1">
+                  <a href="{{ $notif->data['url'] ?? route('admin.reports.show', $notif->data['report_id']) }}" class="btn btn-sm btn-outline-primary py-1">
                     <i class="bi bi-eye"></i> Detail
                   </a>
                   <form action="{{ route('admin.notifications.read', $notif->id) }}" method="POST">

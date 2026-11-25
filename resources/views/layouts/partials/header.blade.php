@@ -12,7 +12,7 @@
     <ul class="d-flex align-items-center">
 
       @auth
-        @if(auth()->user()->is_jarkom == 1)
+        @if(auth()->user()->is_jarkom == 1 || auth()->user()->is_umum == 1)
           <!-- ======= Notifications Dropdown ======= -->
           <li class="nav-item dropdown">
             <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
@@ -38,7 +38,7 @@
                   <div class="d-flex align-items-start">
                     <i class="bi bi-exclamation-circle text-warning fs-5 me-3"></i>
                     <div>
-                      <h4 class="fs-6 fw-bold mb-1 text-dark">Laporan {{ ucfirst($notification->data['issue_type'] ?? 'Kerusakan') }}</h4>
+                      <h4 class="fs-6 fw-bold mb-1 text-dark">@if(!empty($notification->data['url']))<a href="{{ $notification->data['url'] }}" class="text-dark">{{ $notification->data['title'] ?? 'Laporan Baru' }}</a>@else Laporan {{ ucfirst($notification->data['issue_type'] ?? 'Kerusakan') }}@endif</h4>
                       <p class="text-muted mb-1 small">{{ Str::limit($notification->data['description'] ?? '', 45) }}</p>
                       <p class="text-secondary mb-0" style="font-size: 0.75rem;">
                         <i class="bi bi-clock me-1"></i>{{ \Carbon\Carbon::parse($notification->data['reported_at'] ?? now())->diffForHumans() }}

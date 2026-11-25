@@ -3,25 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
-use App\Models\GeneralComplaint;
 use App\Models\Room;
 use App\Models\ZoomRoom;
 use Illuminate\Http\Request;
 
 class GeneralServiceController extends Controller
 {
-    public function sigap()
-    {
-        return view('general.sigap');
-    }
-
-    public function storeSigap(Request $request)
-    {
-        $data = $request->validate(['location' => 'required|string|max:255', 'category' => 'required|string|max:100', 'description' => 'required|string|min:5']);
-        GeneralComplaint::create($data + ['reported_by' => $request->user()->nip_lama]);
-        return redirect()->route('general.sigap')->with('success', 'Pengaduan SIGAP berhasil dikirim.');
-    }
-
     public function bookingForm(string $type)
     {
         abort_unless(in_array($type, ['zoom', 'room']), 404);
@@ -31,7 +18,7 @@ class GeneralServiceController extends Controller
         $rooms = $type === 'room' ? Room::orderBy('ruang')->get() : collect();
         $calendarBookings = $bookings->map(function (Booking $booking): array {
             return [
-                'title' => $booking->type === 'zoom' && $booking->zoomRoom ? '[' . $booking->zoomRoom->zoom_room . '] ' . $booking->title : $booking->title,
+                'title' => $booking->type === 'zoom' && $booking->zoomRoom ? '['.$booking->zoomRoom->zoom_room.'] '.$booking->title : $booking->title,
                 'status' => $booking->status,
                 'start' => $booking->starts_at->toIso8601String(),
                 'end' => $booking->ends_at->toIso8601String(),
@@ -69,6 +56,7 @@ class GeneralServiceController extends Controller
             return back()->withErrors(['starts_at' => 'Jadwal yang dipilih bertabrakan dengan pengajuan yang sudah ada.'])->withInput();
         }
         Booking::create($data + ['requested_by' => $request->user()->nip_lama, 'type' => $type]);
+
         return redirect()->route('general.booking.form', $type)->with('success', 'Pengajuan berhasil dikirim.');
     }
 
@@ -76,6 +64,7 @@ class GeneralServiceController extends Controller
     {
         abort_unless(in_array($type, ['zoom', 'room']), 404);
         $bookings = Booking::with('room')->where('type', $type)->where('requested_by', request()->user()->nip_lama)->latest()->paginate(10);
+
         return view('general.booking-history', compact('type', 'bookings'));
     }
 
@@ -88,12 +77,6 @@ class GeneralServiceController extends Controller
         return back()->with('success', 'Pengajuan berhasil dihapus.');
     }
 
-    public function adminComplaints()
-    {
-        $complaints = GeneralComplaint::with('reporter')->latest()->paginate(15);
-        return view('general.admin-complaints', compact('complaints'));
-    }
-
     public function adminBookings()
     {
         return $this->bookingReport('room', 'Laporan Ruangan');
@@ -102,6 +85,7 @@ class GeneralServiceController extends Controller
     public function adminZoomBookings()
     {
         $bookings = Booking::with(['requester', 'zoomRoom'])->where('type', 'zoom')->latest()->paginate(15);
+
         return view('general.admin-zoom-bookings', compact('bookings'));
     }
 
@@ -110,6 +94,7 @@ class GeneralServiceController extends Controller
         abort_unless($booking->type === 'zoom', 404);
         $booking->load(['requester', 'zoomRoom']);
         $zoomRooms = ZoomRoom::orderBy('zoom_room')->get();
+
         return view('general.admin-zoom-show', compact('booking', 'zoomRooms'));
     }
 
@@ -154,6 +139,7 @@ class GeneralServiceController extends Controller
     private function bookingReport(string $type, string $title)
     {
         $bookings = Booking::with(['requester', 'room'])->where('type', $type)->latest()->paginate(15);
+
         return view('general.admin-bookings', compact('bookings', 'title'));
     }
 }
